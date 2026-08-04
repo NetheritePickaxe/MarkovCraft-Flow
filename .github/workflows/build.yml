@@ -69,7 +69,7 @@ jobs:
           targetPlatform: ${{ matrix.targetPlatform }}
           buildName: MarkovCraft-Flow
           buildsPath: builds
-          androidAppBundle: true
+          androidExportType: androidAppBundle
           androidKeystoreName: Keystore/markovcraft.keystore
           androidKeystorePass: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           androidKeyaliasName: ${{ secrets.ANDROID_KEY_ALIAS }}
