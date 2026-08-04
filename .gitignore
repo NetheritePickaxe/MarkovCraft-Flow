@@ -87,3 +87,6 @@ crashlytics-build.properties
 
 # GitHub CLI local config used by setup-github-secrets.ps1
 .gh-config/
+
+# CI-generated keystore
+Keystore/
