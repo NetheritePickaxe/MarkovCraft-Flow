@@ -67,9 +67,17 @@ jobs:
           # "Code 20110 (serial invalid)". Place the .ulf directly at the path
           # Unity reads inside the container (/root/.local/share/unity3d/Unity/)
           # and skip activation so the broken serial path is bypassed.
+          # UNITY_LICENSE may be raw .ulf XML or base64-encoded; handle both.
           LICENSE_DIR="$RUNNER_TEMP/_github_home/.local/share/unity3d/Unity"
           mkdir -p "$LICENSE_DIR"
-          printf '%s' "$UNITY_LICENSE" > "$LICENSE_DIR/Unity_lic.ulf"
+          if printf '%s' "$UNITY_LICENSE" | grep -q '^<'; then
+            printf '%s' "$UNITY_LICENSE" > "$LICENSE_DIR/Unity_lic.ulf"
+          elif DECODED=$(printf '%s' "$UNITY_LICENSE" | base64 -d 2>/dev/null) \
+               && printf '%s' "$DECODED" | grep -q '^<'; then
+            printf '%s' "$DECODED" > "$LICENSE_DIR/Unity_lic.ulf"
+          else
+            printf '%s' "$UNITY_LICENSE" > "$LICENSE_DIR/Unity_lic.ulf"
+          fi
           echo "Wrote Unity_lic.ulf ($(wc -c < "$LICENSE_DIR/Unity_lic.ulf") bytes)"
 
       - name: Build Unity project
