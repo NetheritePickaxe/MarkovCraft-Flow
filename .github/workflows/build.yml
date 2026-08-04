@@ -1,0 +1,83 @@
+﻿name: Build
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+  workflow_dispatch:
+    inputs:
+      targetPlatform:
+        description: 'Target platform (e.g. StandaloneWindows64, Android, StandaloneOSX)'
+        required: true
+        default: 'StandaloneWindows64'
+
+env:
+  UNITY_VERSION: 6000.3.9f1
+
+jobs:
+  build:
+    name: Build ${{ matrix.targetPlatform }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        targetPlatform:
+          - StandaloneWindows64
+          - Android
+        include:
+          - targetPlatform: StandaloneWindows64
+            artifactName: MarkovCraft-Flow-Windows
+          - targetPlatform: Android
+            artifactName: MarkovCraft-Flow-Android
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Cache Library
+        uses: actions/cache@v4
+        with:
+          path: Library
+          key: Library-${{ matrix.targetPlatform }}-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            Library-${{ matrix.targetPlatform }}-
+            Library-
+
+      - name: Decode Android keystore
+        if: matrix.targetPlatform == 'Android'
+        run: |
+          mkdir -p ${{ github.workspace }}/Keystore
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > ${{ github.workspace }}/Keystore/markovcraft.keystore
+
+      - name: Build Unity project
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          unityVersion: ${{ env.UNITY_VERSION }}
+          targetPlatform: ${{ matrix.targetPlatform }}
+          buildName: MarkovCraft-Flow
+          buildsPath: builds
+          androidAppBundle: true
+          androidKeystoreName: Keystore/markovcraft.keystore
+          androidKeystorePass: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          androidKeyaliasName: ${{ secrets.ANDROID_KEY_ALIAS }}
+          androidKeyaliasPass: ${{ secrets.ANDROID_KEY_ALIAS_PASSWORD }}
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifactName }}
+          path: builds/${{ matrix.targetPlatform }}
+          if-no-files-found: error
