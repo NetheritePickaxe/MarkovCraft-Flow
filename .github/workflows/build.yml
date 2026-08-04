@@ -34,10 +34,8 @@ jobs:
         include:
           - targetPlatform: StandaloneWindows64
             artifactName: MarkovCraft-Flow-Windows
-            buildPath: builds/StandaloneWindows64/MarkovCraft-Flow.exe
           - targetPlatform: Android
             artifactName: MarkovCraft-Flow-Android
-            buildPath: builds/Android/MarkovCraft-Flow.aab
 
     steps:
       - name: Checkout repository
@@ -64,15 +62,13 @@ jobs:
         uses: game-ci/unity-builder@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-          BUILD_PATH: ${{ matrix.buildPath }}
-          TARGET_PLATFORM: ${{ matrix.targetPlatform }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           unityVersion: ${{ env.UNITY_VERSION }}
           targetPlatform: ${{ matrix.targetPlatform }}
           buildName: MarkovCraft-Flow
           buildsPath: builds
-          buildMethod: BuildScript.Build
-          skipActivation: true
           androidExportType: androidAppBundle
           androidKeystoreName: Keystore/markovcraft.keystore
           androidKeystorePass: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
