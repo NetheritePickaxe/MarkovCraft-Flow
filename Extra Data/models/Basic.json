@@ -1,0 +1,26 @@
+{
+  "metadata": {
+    "name": "Basic JSON",
+    "description": "A simple one-rule replacement demonstrating the JSON rule format.",
+    "author": "MarkovCraft Flow",
+    "version": "1.0.0",
+    "tags": ["example", "simple"]
+  },
+  "values": "BW",
+  "symmetry": "",
+  "origin": false,
+  "palette": [
+    { "symbol": "B", "color": "#000000", "blockState": "minecraft:black_concrete", "description": "Black concrete" },
+    { "symbol": "W", "color": "#FFFFFF", "blockState": "minecraft:white_concrete", "description": "White concrete" }
+  ],
+  "root": {
+    "id": "root",
+    "type": "one",
+    "comment": "Replace all B with W",
+    "parameters": {},
+    "rules": [
+      { "in": "B", "out": "W", "p": 1.0 }
+    ],
+    "children": []
+  }
+}

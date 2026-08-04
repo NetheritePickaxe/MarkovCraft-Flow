@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -176,12 +176,30 @@ namespace MarkovCraft
                 ModelGraphUI.ClearUp();
             } */
 
-            string fileName = MarkovGlobal.GetDataFile($"models{SP}{confModel.Model}.xml");
+            string fileName = MarkovGlobal.GetDataFile($"models{SP}{confModel.Model}");
+            bool isJson = confModel.Model.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
+            if (!isJson && !confModel.Model.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
+            {
+                fileName = MarkovGlobal.GetDataFile($"models{SP}{confModel.Model}.xml");
+            }
             Debug.Log($"{confModelFile} ({confModel.Model}) > {fileName}");
 
             XDocument? modelDoc = null;
 
-            if (File.Exists(fileName))
+            if (isJson && File.Exists(fileName))
+            {
+                try
+                {
+                    var graph = RuleGraph.RuleGraphSerializer.LoadFromFile(fileName);
+                    var root = RuleGraph.RuleGraphCompiler.Compile(graph);
+                    modelDoc = new XDocument(root);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"Failed to load JSON rule graph from {fileName}: {ex}");
+                }
+            }
+            else if (File.Exists(fileName))
             {
                 FileStream fs = new(fileName, FileMode.Open);
 

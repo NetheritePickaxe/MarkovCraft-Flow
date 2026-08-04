@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ConfiguredModel Model="Basic.json" SizeX="8" SizeY="8" SizeZ="1" Amount="1" Steps="10000000" Animated="true" StepsPerRefresh="1">
+  <CustomMapping>
+    <Item Character="B" Color="000000" BlockState="minecraft:black_concrete" />
+    <Item Character="W" Color="FFFFFF" BlockState="minecraft:white_concrete" />
+  </CustomMapping>
+</ConfiguredModel>
