@@ -145,8 +145,10 @@ jobs:
       - name: Patch game-ci entrypoint for consistent machine ID
         run: |
           # Patch game-ci's entrypoint.sh to reuse the machine ID saved during
-          # pre-activation instead of generating a new random one. This ensures
-          # both containers use the same machine ID so the license file is valid.
+          # pre-activation. The original only randomizes machine ID when
+          # UNITY_SERIAL starts with "F", but in the build container UNITY_SERIAL
+          # may be empty, causing the block to be skipped. We patch the condition
+          # to also trigger when /root/machine-id exists (from pre-activation).
           ENTRYPOINT=$(find /home/runner/work/_actions/game-ci/unity-builder \
             -path "*/ubuntu/entrypoint.sh" 2>/dev/null | head -1)
           if [ -z "$ENTRYPOINT" ]; then
@@ -154,8 +156,38 @@ jobs:
             exit 0
           fi
           echo "Patching $ENTRYPOINT"
-          # Replace the dbus-uuidgen line with logic that reuses saved machine ID
-          sed -i 's|dbus-uuidgen > /etc/machine-id|if [ -f /root/machine-id ]; then echo "Reusing saved machine ID"; cat /root/machine-id > /etc/machine-id; else echo "Generating new machine ID"; dbus-uuidgen > /etc/machine-id; fi|' "$ENTRYPOINT"
+
+          # Use Python for reliable multi-line patching (sed struggles with
+          # special chars like *, [[, ]] in the condition line)
+          python3 -c "
+          import sys
+          with open('$ENTRYPOINT', 'r') as f:
+              content = f.read()
+
+          # 1. Patch the condition: also trigger when /root/machine-id exists
+          old_cond = 'if [[ \"\$UNITY_SERIAL\" = F* ]]; then'
+          new_cond = 'if [ -f /root/machine-id ] || [[ \"\$UNITY_SERIAL\" = F* ]]; then'
+          if old_cond in content:
+              content = content.replace(old_cond, new_cond)
+              print('Patched condition line')
+          else:
+              print('WARNING: condition line not found')
+
+          # 2. Patch the dbus-uuidgen line to reuse saved machine ID
+          old_line = 'dbus-uuidgen > /etc/machine-id'
+          new_line = 'if [ -f /root/machine-id ]; then echo \"Reusing saved machine ID\"; cat /root/machine-id > /etc/machine-id; else echo \"Generating new machine ID\"; dbus-uuidgen > /etc/machine-id; fi'
+          if old_line in content:
+              content = content.replace(old_line, new_line)
+              print('Patched dbus-uuidgen line')
+          else:
+              print('WARNING: dbus-uuidgen line not found')
+
+          with open('$ENTRYPOINT', 'w') as f:
+              f.write(content)
+          "
+
+          echo "--- Patched entrypoint.sh (first 15 lines) ---"
+          head -15 "$ENTRYPOINT"
           echo "Patch applied."
 
       - name: Build Unity project
