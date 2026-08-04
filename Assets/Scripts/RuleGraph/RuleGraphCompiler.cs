@@ -70,4 +70,3 @@ namespace MarkovCraft.RuleGraph
         }
     }
 }
-            if (graph != null && ReferenceEquals(node, graph.Root))
