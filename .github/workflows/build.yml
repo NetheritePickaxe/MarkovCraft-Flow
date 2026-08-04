@@ -91,6 +91,8 @@ jobs:
           fi
           SERIAL=$(printf '%s' "$SERIAL_DATA" | base64 -d 2>/dev/null | tail -c +5)
           echo "Extracted serial (${#SERIAL} chars, starts with: ${SERIAL:0:1})"
+          # Export so docker -e SERIAL passes it to the container
+          export SERIAL
 
           mkdir -p /tmp/BlankProject/Assets
 
@@ -106,7 +108,6 @@ jobs:
             -e SERIAL \
             "unityci/editor:ubuntu-${{ env.UNITY_VERSION }}-${{ matrix.imageVariant }}-3" \
             bash -c '
-              set -e
               mkdir -p /BlankProject/Assets
               # Randomize machine ID for Personal license (same as game-ci entrypoint.sh)
               if [[ "$SERIAL" = F* ]]; then
@@ -116,6 +117,9 @@ jobs:
                 ln -sf /etc/machine-id /var/lib/dbus/machine-id
                 # Save machine ID so the build container can reuse it
                 cp /etc/machine-id /root/machine-id
+                echo "Saved machine ID: $(cat /root/machine-id)"
+              else
+                echo "WARNING: Serial does not start with F, skipping machine ID randomization"
               fi
               # Run Unity with -serial. Ignore exit code (Code 20110 expected).
               unity-editor -batchmode -nographics -quit \
