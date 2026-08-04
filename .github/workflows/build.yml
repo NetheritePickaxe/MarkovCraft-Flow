@@ -64,26 +64,49 @@ jobs:
         env:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         run: |
-          # Unity 6 Personal uses entitlement-based licensing (no serial).
-          # game-ci's activate.sh extracts a "serial" from the .ulf and passes
-          # -serial to unity-editor, which Unity 6 rejects with "Code 20110".
-          # Pre-activate with email/password only (no -serial) to store the
-          # entitlement license + access token in /root (mounted from
-          # RUNNER_TEMP/_github_home). Then game-ci runs with skipActivation=true
-          # and finds the valid license + access token.
+          # Unity 6 Personal entitlement activation REQUIRES the -serial flag
+          # to trigger the "license management request". Without -serial, Unity
+          # authenticates but doesn't activate the entitlement (error: "Found 0
+          # entitlement groups"). With -serial, the entitlement IS activated but
+          # then serial registration fails (Code 20110) and Unity aborts.
           #
-          # We use the same image variant as the build step so the default
-          # /etc/machine-id matches between the two containers.
+          # We run unity-editor with -serial (extracted from .ulf, same as game-ci)
+          # and ignore the non-zero exit code. The entitlement activation happens
+          # before the serial error, so the license file may be written to disk
+          # despite the abort. We then verify the license file exists.
+          #
+          # The same docker image variant is used for both pre-activation and
+          # build so /etc/machine-id is consistent.
+
+          # Decode UNITY_LICENSE if base64-encoded
+          LICENSE="$UNITY_LICENSE"
+          if ! printf '%s' "$LICENSE" | grep -q '^<'; then
+            LICENSE=$(printf '%s' "$LICENSE" | base64 -d 2>/dev/null)
+          fi
+
+          # Extract serial from .ulf (same logic as game-ci's getSerialFromLicenseFile)
+          SERIAL_DATA=$(printf '%s' "$LICENSE" | grep -oP '<DeveloperData Value="\K[^"]+')
+          if [ -z "$SERIAL_DATA" ]; then
+            echo "::error::Could not extract serial from license file"
+            exit 1
+          fi
+          SERIAL=$(printf '%s' "$SERIAL_DATA" | base64 -d 2>/dev/null | tail -c +5)
+          echo "Extracted serial (${#SERIAL} chars)"
+
           mkdir -p /tmp/BlankProject/Assets
 
+          # Run Unity with -serial to trigger entitlement activation.
+          # Ignore the exit code (Code 20110 serial invalid is expected).
           docker run --rm \
             -v "$RUNNER_TEMP/_github_home:/root:z" \
             -v "/tmp/BlankProject:/BlankProject:z" \
             -e UNITY_EMAIL \
             -e UNITY_PASSWORD \
+            -e SERIAL \
             "unityci/editor:ubuntu-${{ env.UNITY_VERSION }}-${{ matrix.imageVariant }}-3" \
-            bash -c 'mkdir -p /BlankProject/Assets && unity-editor -batchmode -nographics -quit -username "$UNITY_EMAIL" -password "$UNITY_PASSWORD" -projectPath /BlankProject -logFile /dev/stdout || true'
+            bash -c 'mkdir -p /BlankProject/Assets && unity-editor -batchmode -nographics -quit -serial "$SERIAL" -username "$UNITY_EMAIL" -password "$UNITY_PASSWORD" -projectPath /BlankProject -logFile /dev/stdout || true'
 
           echo "--- License files ---"
           ls -la "$RUNNER_TEMP/_github_home/.local/share/unity3d/Unity/" 2>/dev/null || echo "No license in .local/share"
