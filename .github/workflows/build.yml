@@ -66,19 +66,16 @@ jobs:
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         run: |
-          # Unity 6 Personal entitlement activation REQUIRES the -serial flag
-          # to trigger the "license management request". Without -serial, Unity
-          # authenticates but doesn't activate the entitlement (error: "Found 0
-          # entitlement groups"). With -serial, the entitlement IS activated but
-          # then serial registration fails (Code 20110) and Unity aborts.
+          # Unity 6 Personal entitlement activation REQUIRES:
+          # 1. The -serial flag (to trigger "license management request")
+          # 2. A randomized /etc/machine-id (Personal licenses are machine-bound)
           #
-          # We run unity-editor with -serial (extracted from .ulf, same as game-ci)
-          # and ignore the non-zero exit code. The entitlement activation happens
-          # before the serial error, so the license file may be written to disk
-          # despite the abort. We then verify the license file exists.
-          #
-          # The same docker image variant is used for both pre-activation and
-          # build so /etc/machine-id is consistent.
+          # game-ci's entrypoint.sh randomizes the machine ID when UNITY_SERIAL
+          # starts with "F". We replicate this in the pre-activation container
+          # and save the machine ID to /root/machine-id (persists via the
+          # RUNNER_TEMP/_github_home mount). The build container reuses it
+          # via a patched entrypoint.sh so both containers share the same
+          # machine ID and the license file is valid.
 
           # Decode UNITY_LICENSE if base64-encoded
           LICENSE="$UNITY_LICENSE"
@@ -93,12 +90,14 @@ jobs:
             exit 1
           fi
           SERIAL=$(printf '%s' "$SERIAL_DATA" | base64 -d 2>/dev/null | tail -c +5)
-          echo "Extracted serial (${#SERIAL} chars)"
+          echo "Extracted serial (${#SERIAL} chars, starts with: ${SERIAL:0:1})"
 
           mkdir -p /tmp/BlankProject/Assets
 
           # Run Unity with -serial to trigger entitlement activation.
-          # Ignore the exit code (Code 20110 serial invalid is expected).
+          # Randomize machine ID (same as game-ci entrypoint.sh) and save it
+          # so the build container can reuse it. Ignore the exit code
+          # (Code 20110 serial invalid is expected after entitlement activation).
           docker run --rm \
             -v "$RUNNER_TEMP/_github_home:/root:z" \
             -v "/tmp/BlankProject:/BlankProject:z" \
@@ -106,12 +105,32 @@ jobs:
             -e UNITY_PASSWORD \
             -e SERIAL \
             "unityci/editor:ubuntu-${{ env.UNITY_VERSION }}-${{ matrix.imageVariant }}-3" \
-            bash -c 'mkdir -p /BlankProject/Assets && unity-editor -batchmode -nographics -quit -serial "$SERIAL" -username "$UNITY_EMAIL" -password "$UNITY_PASSWORD" -projectPath /BlankProject -logFile /dev/stdout || true'
+            bash -c '
+              set -e
+              mkdir -p /BlankProject/Assets
+              # Randomize machine ID for Personal license (same as game-ci entrypoint.sh)
+              if [[ "$SERIAL" = F* ]]; then
+                echo "Randomizing machine ID for personal license activation"
+                dbus-uuidgen > /etc/machine-id
+                mkdir -p /var/lib/dbus/
+                ln -sf /etc/machine-id /var/lib/dbus/machine-id
+                # Save machine ID so the build container can reuse it
+                cp /etc/machine-id /root/machine-id
+              fi
+              # Run Unity with -serial. Ignore exit code (Code 20110 expected).
+              unity-editor -batchmode -nographics -quit \
+                -serial "$SERIAL" \
+                -username "$UNITY_EMAIL" \
+                -password "$UNITY_PASSWORD" \
+                -projectPath /BlankProject \
+                -logFile /dev/stdout || true
+            '
 
           echo "--- License files ---"
           ls -la "$RUNNER_TEMP/_github_home/.local/share/unity3d/Unity/" 2>/dev/null || echo "No license in .local/share"
           ls -la "$RUNNER_TEMP/_github_home/.local/share/unity3d/" 2>/dev/null || echo "No .local/share/unity3d"
-          ls -la "$RUNNER_TEMP/_github_home/.config/unity3d/" 2>/dev/null || echo "No .config/unity3d"
+          echo "--- Machine ID ---"
+          cat "$RUNNER_TEMP/_github_home/machine-id" 2>/dev/null || echo "No machine-id saved"
 
           if [ ! -f "$RUNNER_TEMP/_github_home/.local/share/unity3d/Unity/Unity_lic.ulf" ]; then
             echo "::error::Unity license file was not created during pre-activation"
@@ -119,16 +138,30 @@ jobs:
           fi
           echo "Pre-activation complete."
 
+      - name: Patch game-ci entrypoint for consistent machine ID
+        run: |
+          # Patch game-ci's entrypoint.sh to reuse the machine ID saved during
+          # pre-activation instead of generating a new random one. This ensures
+          # both containers use the same machine ID so the license file is valid.
+          ENTRYPOINT=$(find /home/runner/work/_actions/game-ci/unity-builder \
+            -path "*/ubuntu/entrypoint.sh" 2>/dev/null | head -1)
+          if [ -z "$ENTRYPOINT" ]; then
+            echo "::warning::game-ci entrypoint.sh not found, skipping patch"
+            exit 0
+          fi
+          echo "Patching $ENTRYPOINT"
+          # Replace the dbus-uuidgen line with logic that reuses saved machine ID
+          sed -i 's|dbus-uuidgen > /etc/machine-id|if [ -f /root/machine-id ]; then echo "Reusing saved machine ID"; cat /root/machine-id > /etc/machine-id; else echo "Generating new machine ID"; dbus-uuidgen > /etc/machine-id; fi|' "$ENTRYPOINT"
+          echo "Patch applied."
+
       - name: Build Unity project
         uses: game-ci/unity-builder@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-          # Set a dummy serial that does NOT start with "F" so entrypoint.sh
-          # does not randomize /etc/machine-id. This keeps the machine ID
-          # consistent with the pre-activation container (same docker image).
-          # skipActivation=true means activate.sh is never run, so the serial
-          # is never actually used for activation.
-          UNITY_SERIAL: skip-activation-personal
+          # Let game-ci extract UNITY_SERIAL from the .ulf (starts with "F").
+          # This triggers the machine ID logic in entrypoint.sh, which our
+          # patch makes reuse the saved machine ID from pre-activation.
+          # skipActivation=true means activate.sh is never run.
         with:
           unityVersion: ${{ env.UNITY_VERSION }}
           targetPlatform: ${{ matrix.targetPlatform }}
