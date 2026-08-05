@@ -20,9 +20,16 @@ namespace MarkovCraft
 
         public Camera ViewCamera { get; private set; }
 
+        public bool TouchInputMode { get; set; } = false;
+
         private bool dragging = false, dragRotating = false;
         private Vector2 lastDragPos = Vector2.zero;
         private Vector3? targetPos = null;
+
+        // Touch state
+        private bool touchPanning = false, touchRotating = false;
+        private Vector2 touchPanStart = Vector2.zero;
+        private float prevPinchDist = 0F;
 
         public void SetCenterPosition(Vector3 newCenter)
         {
@@ -61,148 +68,191 @@ namespace MarkovCraft
             if (screenManager && !screenManager.AllowsMovementInput)
             {
                 dragging = false;
+                touchPanning = false;
+                touchRotating = false;
                 return;
             }
 
-            var mouse = Mouse.current;
-            var keyboard = Keyboard.current;
-
-            // If no mouse is available, always consider pointer is over UI
-            var pointerOverUI = true;
-
-            if (mouse != null)
-            {
-                pointerOverUI = EventSystem.current.IsPointerOverGameObject();
-                
-                if (dragging) // Perform dragging
-                {
-                    if (mouse.rightButton.isPressed)
-                    {
-                        var curDragPos = mouse.position.ReadValue();
-                        var dragOffset = curDragPos - lastDragPos;
-
-                        var dragMultiplier = yPosition / yPosMax * 0.3F;
-                        var newPos = transform.position - dragMultiplier * (transform.right * dragOffset.x + transform.up * dragOffset.y);
-
-                        newPos.y = Mathf.Clamp(newPos.y, yPosMin, yPosMax);
-
-                        transform.position = newPos;
-
-                        lastDragPos = curDragPos;
-                    }
-                    else
-                    {
-                        dragging = false;
-                    }
-                }
-                else // Check start dragging
-                {
-                    if (!dragRotating && mouse.rightButton.isPressed && !pointerOverUI)
-                    {
-                        dragging = true;
-                        lastDragPos = mouse.position.ReadValue();
-                    }
-                }
-            }
-
             float hor = 0F;
-            if (keyboard != null)
-            {
-                if (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed) hor -= 1F;
-                if (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed) hor += 1F;
-            }
-
             float ver = 0F;
-            if (keyboard != null)
-            {
-                if (keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed) ver -= 1F;
-                if (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed) ver += 1F;
-            }
-            
             float fly = 0F;
             float rot = 0F;
+            float scroll = 0F;
 
-            if (joystickPanel && joystickPanel.Magnitude > 0F)
+            if (TouchInputMode)
             {
-                hor += joystickPanel.Value.x * 0.01F;
-                ver += joystickPanel.Value.y * 0.01F;
-            }
-
-            if (mouse != null)
-            {
-                if (dragRotating) // Perform dragging
+                var touchscreen = Touchscreen.current;
+                if (touchscreen != null && touchscreen.touches.Count > 0)
                 {
-                    if (mouse.middleButton.isPressed)
+                    var activeTouches = touchscreen.touches;
+                    int touchCount = 0;
+                    foreach (var t in activeTouches)
+                        if (t.phase.ReadValue() != UnityEngine.InputSystem.TouchPhase.None)
+                            touchCount++;
+
+                    if (touchCount == 1)
                     {
-                        var curDragPos = mouse.position.ReadValue();
-                        var dragOffset = curDragPos - lastDragPos;
+                        var touch = activeTouches[0];
+                        var phase = touch.phase.ReadValue();
 
-                        rot = dragOffset.x * Time.deltaTime * 30F;
+                        if (phase == UnityEngine.InputSystem.TouchPhase.Began)
+                        {
+                            if (!EventSystem.current.IsPointerOverGameObject(touch.touchId.ReadValue()))
+                            {
+                                touchPanning = true;
+                                touchPanStart = touch.position.ReadValue();
+                            }
+                        }
+                        else if (phase == UnityEngine.InputSystem.TouchPhase.Moved && touchPanning)
+                        {
+                            var curPos = touch.position.ReadValue();
+                            var delta = curPos - touchPanStart;
 
-                        lastDragPos = curDragPos;
+                            var dragMultiplier = yPosition / yPosMax * 0.3F;
+                            var newPos = transform.position - dragMultiplier * (transform.right * delta.x + transform.up * delta.y);
+                            newPos.y = Mathf.Clamp(newPos.y, yPosMin, yPosMax);
+                            transform.position = newPos;
+
+                            touchPanStart = curPos;
+                        }
+                        else if (phase == UnityEngine.InputSystem.TouchPhase.Ended || phase == UnityEngine.InputSystem.TouchPhase.Canceled)
+                        {
+                            touchPanning = false;
+                        }
+                    }
+                    else if (touchCount >= 2)
+                    {
+                        var t0 = activeTouches[0];
+                        var t1 = activeTouches[1];
+                        var phase0 = t0.phase.ReadValue();
+                        var phase1 = t1.phase.ReadValue();
+
+                        if (phase0 == UnityEngine.InputSystem.TouchPhase.Began || phase1 == UnityEngine.InputSystem.TouchPhase.Began)
+                        {
+                            touchRotating = true;
+                            prevPinchDist = Vector2.Distance(t0.position.ReadValue(), t1.position.ReadValue());
+                        }
+                        else if ((phase0 == UnityEngine.InputSystem.TouchPhase.Moved || phase1 == UnityEngine.InputSystem.TouchPhase.Moved) && touchRotating)
+                        {
+                            var curPos0 = t0.position.ReadValue();
+                            var curPos1 = t1.position.ReadValue();
+                            var prevPos0 = t0.position.ReadValue() - t0.delta.ReadValue();
+                            var prevPos1 = t1.position.ReadValue() - t1.delta.ReadValue();
+
+                            // Rotation from horizontal finger movement
+                            var avgDelta = (t0.delta.ReadValue().x + t1.delta.ReadValue().x) * 0.5F;
+                            rot = avgDelta * Time.deltaTime * 30F;
+
+                            // Pinch zoom
+                            var curPinch = Vector2.Distance(curPos0, curPos1);
+                            if (prevPinchDist > 0F)
+                            {
+                                var pinchDelta = (curPinch - prevPinchDist) * 0.5F;
+                                scroll = pinchDelta * Time.deltaTime * 2F;
+                            }
+                            prevPinchDist = curPinch;
+                        }
+                        else if (phase0 == UnityEngine.InputSystem.TouchPhase.Ended || phase0 == UnityEngine.InputSystem.TouchPhase.Canceled
+                            || phase1 == UnityEngine.InputSystem.TouchPhase.Ended || phase1 == UnityEngine.InputSystem.TouchPhase.Canceled)
+                        {
+                            touchRotating = false;
+                            prevPinchDist = 0F;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                var mouse = Mouse.current;
+                var keyboard = Keyboard.current;
+
+                var pointerOverUI = true;
+
+                if (mouse != null)
+                {
+                    pointerOverUI = EventSystem.current.IsPointerOverGameObject();
+                    
+                    if (dragging)
+                    {
+                        if (mouse.rightButton.isPressed)
+                        {
+                            var curDragPos = mouse.position.ReadValue();
+                            var dragOffset = curDragPos - lastDragPos;
+
+                            var dragMultiplier = yPosition / yPosMax * 0.3F;
+                            var newPos = transform.position - dragMultiplier * (transform.right * dragOffset.x + transform.up * dragOffset.y);
+                            newPos.y = Mathf.Clamp(newPos.y, yPosMin, yPosMax);
+                            transform.position = newPos;
+
+                            lastDragPos = curDragPos;
+                        }
+                        else
+                        {
+                            dragging = false;
+                        }
                     }
                     else
                     {
-                        dragRotating = false;
-                    }
-                }
-                else // Check start dragging
-                {
-                    if (!dragging && mouse.middleButton.isPressed && !pointerOverUI)
-                    {
-                        dragRotating = true;
-                        lastDragPos = mouse.position.ReadValue();
-                    }
-                    else if (keyboard != null)
-                    {
-                        if (keyboard.qKey.isPressed) // Turn camera counter-clockwise
+                        if (!dragRotating && mouse.rightButton.isPressed && !pointerOverUI)
                         {
-                            rot += 1F;
-                        }
-                    
-                        if (keyboard.eKey.isPressed) // Turn camera clockwise
-                        {
-                            rot -= 1F;
+                            dragging = true;
+                            lastDragPos = mouse.position.ReadValue();
                         }
                     }
                 }
-            }
 
-            if (keyboard != null)
-            {
-                if (keyboard.spaceKey.isPressed) // Fly up
+                if (keyboard != null)
                 {
-                    fly += 1F;
+                    if (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed) hor -= 1F;
+                    if (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed) hor += 1F;
+                    if (keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed) ver -= 1F;
+                    if (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed) ver += 1F;
+                    if (keyboard.qKey.isPressed) rot += 1F;
+                    if (keyboard.eKey.isPressed) rot -= 1F;
+                    if (keyboard.spaceKey.isPressed) fly += 1F;
+                    if (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed) fly -= 1F;
                 }
 
-                if (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed) // Fly down
+                if (joystickPanel && joystickPanel.Magnitude > 0F)
                 {
-                    fly -= 1F;
-                }
-            }
-
-            float scroll = pointerOverUI ? 0F : mouse.scroll.ReadValue().y / 120F;
-
-            if (joystickPanel)
-            {
-                if (joystickPanel.ZoomInButtonIsHeld)
-                {
-                    scroll += Time.deltaTime;
+                    hor += joystickPanel.Value.x * 0.01F;
+                    ver += joystickPanel.Value.y * 0.01F;
                 }
 
-                if (joystickPanel.ZoomOutButtonIsHeld)
+                if (mouse != null)
                 {
-                    scroll -= Time.deltaTime;
+                    if (dragRotating)
+                    {
+                        if (mouse.middleButton.isPressed)
+                        {
+                            var curDragPos = mouse.position.ReadValue();
+                            var dragOffset = curDragPos - lastDragPos;
+                            rot = dragOffset.x * Time.deltaTime * 30F;
+                            lastDragPos = curDragPos;
+                        }
+                        else
+                        {
+                            dragRotating = false;
+                        }
+                    }
+                    else
+                    {
+                        if (!dragging && mouse.middleButton.isPressed && !pointerOverUI)
+                        {
+                            dragRotating = true;
+                            lastDragPos = mouse.position.ReadValue();
+                        }
+                    }
+
+                    scroll = pointerOverUI ? 0F : mouse.scroll.ReadValue().y / 120F;
                 }
 
-                if (joystickPanel.RotateLeftButtonIsHeld)
+                if (joystickPanel)
                 {
-                    rot += 1F;
-                }
-
-                if (joystickPanel.RotateRightButtonIsHeld)
-                {
-                    rot -= 1F;
+                    if (joystickPanel.ZoomInButtonIsHeld) scroll += Time.deltaTime;
+                    if (joystickPanel.ZoomOutButtonIsHeld) scroll -= Time.deltaTime;
+                    if (joystickPanel.RotateLeftButtonIsHeld) rot += 1F;
+                    if (joystickPanel.RotateRightButtonIsHeld) rot -= 1F;
                 }
             }
 

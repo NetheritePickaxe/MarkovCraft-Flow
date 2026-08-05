@@ -58,6 +58,16 @@ namespace MarkovCraft
         [SerializeField] public Button? VoxImportButton;
 
         private TMP_Text? togglePanelButtonText;
+        private TMP_Text? touchModeButtonText;
+
+        // Touch mode state
+        private bool touchMode = false;
+        private bool tapDetectedThisFrame = false;
+        private Vector2 tapStartPos = Vector2.zero;
+        private float tapStartTime = 0F;
+
+        private const float TAP_MAX_DURATION = 0.3F;
+        private const float TAP_MAX_DISTANCE = 10F;
 
         // Character => RGB Color specified in base palette
         // This palette should be loaded for only once
@@ -197,6 +207,89 @@ namespace MarkovCraft
             togglePanelButtonText = text;
 
             UpdateTogglePanelButton();
+
+            // Create touch mode toggle button
+            var touchToggleGo = new GameObject("TouchModeToggle");
+            touchToggleGo.transform.SetParent(canvas.transform, false);
+            var touchRect = touchToggleGo.AddComponent<RectTransform>();
+            touchRect.anchorMin = new Vector2(1, 0.5F);
+            touchRect.anchorMax = new Vector2(1, 0.5F);
+            touchRect.pivot = new Vector2(1, 0.5F);
+            touchRect.anchoredPosition = new Vector2(-10, 0);
+            touchRect.sizeDelta = new Vector2(100, 40);
+
+            var touchImg = touchToggleGo.AddComponent<UnityEngine.UI.Image>();
+            touchImg.color = new Color(0, 0, 0, 0.6F);
+
+            var touchBtn = touchToggleGo.AddComponent<UnityEngine.UI.Button>();
+            touchBtn.targetGraphic = touchImg;
+            touchBtn.onClick.AddListener(ToggleTouchMode);
+
+            var touchTextGo = new GameObject("Text");
+            touchTextGo.transform.SetParent(touchToggleGo.transform, false);
+            var touchTextRect = touchTextGo.AddComponent<RectTransform>();
+            touchTextRect.anchorMin = Vector2.zero;
+            touchTextRect.anchorMax = Vector2.one;
+            touchTextRect.sizeDelta = Vector2.zero;
+
+            touchModeButtonText = touchTextGo.AddComponent<TMPro.TextMeshProUGUI>();
+            touchModeButtonText.text = touchMode ? "触屏模式" : "摇杆模式";
+            touchModeButtonText.fontSize = 16;
+            touchModeButtonText.alignment = TMPro.TextAlignmentOptions.Center;
+            touchModeButtonText.color = Color.white;
+        }
+
+        private void ToggleTouchMode()
+        {
+            touchMode = !touchMode;
+            PlayerPrefs.SetInt("TouchInputMode", touchMode ? 1 : 0);
+            PlayerPrefs.Save();
+            if (CamController != null)
+                CamController.TouchInputMode = touchMode;
+            if (joystickPanel != null)
+                joystickPanel.gameObject.SetActive(!touchMode);
+            if (touchModeButtonText != null)
+                touchModeButtonText.text = touchMode ? "触屏模式" : "摇杆模式";
+        }
+
+        private void CreateTouchModeToggle()
+        {
+            var canvas = GetComponentInParent<Canvas>();
+            if (canvas == null) return;
+
+            var go = new GameObject("TouchModeToggle");
+            go.transform.SetParent(canvas.transform, false);
+
+            var rect = go.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(1, 0.5F);
+            rect.anchorMax = new Vector2(1, 0.5F);
+            rect.pivot = new Vector2(1, 0.5F);
+            rect.anchoredPosition = new Vector2(-10, 0);
+            rect.sizeDelta = new Vector2(100, 40);
+
+            var img = go.AddComponent<UnityEngine.UI.Image>();
+            img.color = new Color(0, 0, 0, 0.6F);
+
+            var btn = go.AddComponent<UnityEngine.UI.Button>();
+            btn.targetGraphic = img;
+            btn.onClick.AddListener(ToggleTouchMode);
+
+            var textGo = new GameObject("Text");
+            textGo.transform.SetParent(go.transform, false);
+            var textRect = textGo.AddComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.sizeDelta = Vector2.zero;
+
+            touchModeButtonText = textGo.AddComponent<TMPro.TextMeshProUGUI>();
+            touchMode = PlayerPrefs.GetInt("TouchInputMode", 0) == 1;
+            CamController!.TouchInputMode = touchMode;
+            if (joystickPanel != null)
+                joystickPanel.gameObject.SetActive(!touchMode);
+            touchModeButtonText.text = touchMode ? "触屏模式" : "摇杆模式";
+            touchModeButtonText.fontSize = 16;
+            touchModeButtonText.alignment = TMPro.TextAlignmentOptions.Center;
+            touchModeButtonText.color = Color.white;
         }
 
         public Dictionary<char, int> GetBaseColorPalette()
@@ -697,6 +790,7 @@ namespace MarkovCraft
                     ControlTabPanel.OnSelectionChange.AddListener(ClearUpScene);
 
                     CreateTogglePanelButton();
+                    CreateTouchModeToggle();
 
                     UpdateConfModelList();
 
@@ -730,15 +824,18 @@ namespace MarkovCraft
         {
             if (FPSText)
                 FPSText.text = $"FPS:{(int)(1 / Time.unscaledDeltaTime), 4}";
-            
+
             if (screenManager && !screenManager.AllowsMovementInput) return;
-            
+
             var cam = CamController!.ViewCamera;
             var mouse = Mouse.current;
             var pointer = Pointer.current;
-            
+
             if (mouse == null && pointer == null) return;
-            
+
+            // Touch tap gesture detection
+            HandleTouchTap();
+
             if (cam && VolumeSelection)
             {
                 if (!VolumeSelection.Locked) // Update selected volume
@@ -750,7 +847,8 @@ namespace MarkovCraft
                     {
                         UpdateSelectedResult(hit.collider.gameObject.GetComponentInParent<GenerationResult>());
 
-                        var clicked = mouse != null ? mouse.leftButton.wasPressedThisFrame : pointer.wasUpdatedThisFrame;
+                        var clicked = (mouse != null && mouse.leftButton.wasPressedThisFrame)
+                                    || tapDetectedThisFrame;
 
                         if (clicked && selectedResult!.Completed) // Lock can only be applied to completed results
                         {
@@ -777,33 +875,47 @@ namespace MarkovCraft
                         var ray = cam.ScreenPointToRay(mousePos);
 
                         // Volume is still locked, update block selection
-                        if (selectedResult && Physics.Raycast(ray.origin, ray.direction, out RaycastHit hit, 1000F, BlockMeshLayerMask)) // Mouse pointer is over a block
+                        if (selectedResult && Physics.Raycast(ray.origin, ray.direction, out RaycastHit hit, 1000F, BlockMeshLayerMask))
                         {
-                            // Get block position in the volume (local space in volume)
                             var blockPos = hit.point - hit.normal * 0.01F;
-
                             var (x, y, z, unityPos, item) = selectedResult.GetBlockPosInVolume(blockPos);
                             UpdateBlockSelection(item, $"({x}, {y}, {z})");
-
-                            /* if (item == null && Mouse.current?.leftButton.wasPressedThisFrame == true) // Unlock volume
-                            {
-                                UnlockSelectedResult();
-                            } */
-
-                            // Update cursor position (world space)
                             BlockSelection!.transform.position = unityPos;
                         }
-                        else // Mouse pointer is over no block
+                        else
                         {
-                            /* if (Mouse.current?.leftButton.wasPressedThisFrame == true) // Unlock volume
-                            {
-                                UnlockSelectedResult();
-                            } */
-
-                            // Reset block selection
                             BlockSelection!.transform.position = BLOCK_SELECTION_HIDDEN_POS;
                             UpdateBlockSelection(null);
                         }
+                    }
+                }
+            }
+        }
+
+        private void HandleTouchTap()
+        {
+            var touchscreen = Touchscreen.current;
+            if (touchscreen == null) return;
+
+            tapDetectedThisFrame = false;
+
+            foreach (var touch in touchscreen.touches)
+            {
+                var phase = touch.phase.ReadValue();
+
+                if (phase == UnityEngine.InputSystem.TouchPhase.Began)
+                {
+                    tapStartPos = touch.position.ReadValue();
+                    tapStartTime = Time.time;
+                }
+                else if (phase == UnityEngine.InputSystem.TouchPhase.Ended)
+                {
+                    var elapsed = Time.time - tapStartTime;
+                    var dist = Vector2.Distance(touch.position.ReadValue(), tapStartPos);
+
+                    if (elapsed <= TAP_MAX_DURATION && dist <= TAP_MAX_DISTANCE)
+                    {
+                        tapDetectedThisFrame = true;
                     }
                 }
             }
