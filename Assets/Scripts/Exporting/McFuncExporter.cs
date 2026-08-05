@@ -21,7 +21,7 @@ namespace MarkovCraft
 
             var funcText = new StringBuilder();
             int count = mcSizeX * mcSizeY * mcSizeZ;
-            bool[] processed = fillMerge ? new bool[count] : null;
+            bool[]? processed = fillMerge ? new bool[count] : null;
 
             for (int mcy = 0; mcy < mcSizeY; mcy++)
             {
@@ -34,7 +34,7 @@ namespace MarkovCraft
                         var blockState = resultPalette[resultIndex].BlockState;
 
                         if (cullAir && IsAir(blockState)) continue;
-                        if (fillMerge && processed[index]) continue;
+                        if (fillMerge && processed![index]) continue;
 
                         if (fillMerge)
                         {
@@ -44,7 +44,7 @@ namespace MarkovCraft
                             for (int x = mcx + 1; x < mcSizeX; x++)
                             {
                                 int idx = GetIndex(x, mcy, mcz);
-                                if (blockData[idx] != resultIndex || IsAir(resultPalette[blockData[idx]].BlockState) || processed[idx]) break;
+                                if (blockData[idx] != resultIndex || IsAir(resultPalette[blockData[idx]].BlockState) || processed![idx]) break;
                                 maxX = x;
                             }
 
@@ -55,7 +55,7 @@ namespace MarkovCraft
                                 for (int x = mcx; x <= maxX; x++)
                                 {
                                     int idx = GetIndex(x, y, mcz);
-                                    if (blockData[idx] != resultIndex || IsAir(resultPalette[blockData[idx]].BlockState) || processed[idx])
+                                    if (blockData[idx] != resultIndex || IsAir(resultPalette[blockData[idx]].BlockState) || processed![idx])
                                     {
                                         canExtendY = false;
                                         break;
@@ -72,7 +72,7 @@ namespace MarkovCraft
                                 for (int y = mcy; y <= maxY; y++)
                                 {
                                     int idx = GetIndex(x, y, z);
-                                    if (blockData[idx] != resultIndex || IsAir(resultPalette[blockData[idx]].BlockState) || processed[idx])
+                                    if (blockData[idx] != resultIndex || IsAir(resultPalette[blockData[idx]].BlockState) || processed![idx])
                                     {
                                         canExtendZ = false;
                                         break;
@@ -85,7 +85,7 @@ namespace MarkovCraft
                             for (int x = mcx; x <= maxX; x++)
                             for (int y = mcy; y <= maxY; y++)
                             for (int z = mcz; z <= maxZ; z++)
-                                processed[GetIndex(x, y, z)] = true;
+                                processed![GetIndex(x, y, z)] = true;
 
                             string from = $"~{RelCoord(mcx)} ~{RelCoord(mcy)} ~{RelCoord(mcz)}";
                             string to = $"~{RelCoord(maxX)} ~{RelCoord(maxY)} ~{RelCoord(maxZ)}";

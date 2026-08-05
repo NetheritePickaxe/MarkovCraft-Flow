@@ -9,7 +9,7 @@ namespace MarkovCraft.RuleGraph
         {
             return CompileNode(data.Root, data);
         }
-        private static XElement CompileNode(RuleNodeData node, RuleGraphData graph)
+        private static XElement CompileNode(RuleNodeData node, RuleGraphData? graph)
         {
             XElement element = new XElement(node.Type);
             if (graph != null && ReferenceEquals(node, graph.Root))
