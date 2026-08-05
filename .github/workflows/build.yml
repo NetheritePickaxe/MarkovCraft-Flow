@@ -12,11 +12,6 @@ on:
       - master
       - develop
   workflow_dispatch:
-    inputs:
-      targetPlatform:
-        description: 'Target platform (e.g. StandaloneWindows64, Android, StandaloneOSX)'
-        required: true
-        default: 'StandaloneWindows64'
 
 env:
   UNITY_VERSION: 6000.3.9f1
