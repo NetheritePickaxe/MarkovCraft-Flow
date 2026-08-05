@@ -57,6 +57,8 @@ namespace MarkovCraft
         [SerializeField] public TMP_InputField? VoxPathInput;
         [SerializeField] public Button? VoxImportButton;
 
+        private TMP_Text? togglePanelButtonText;
+
         // Character => RGB Color specified in base palette
         // This palette should be loaded for only once
         private readonly Dictionary<char, int> baseColorPalette = new();
@@ -128,6 +130,7 @@ namespace MarkovCraft
             {
                 ModelGraphUIv2.HidePanel();
             }
+            UpdateTogglePanelButton();
         }
 
         public override void ShowSpecialGUI()
@@ -138,6 +141,62 @@ namespace MarkovCraft
             {
                 ModelGraphUIv2.ShowPanelIfNotEmpty();
             }
+            UpdateTogglePanelButton();
+        }
+
+        public void ToggleModelGraphPanel()
+        {
+            if (ModelGraphUIv2 == null) return;
+            if (ModelGraphUIv2.IsPanelVisible)
+                HideSpecialGUI();
+            else
+                ShowSpecialGUI();
+        }
+
+        private void UpdateTogglePanelButton()
+        {
+            if (togglePanelButtonText == null) return;
+            togglePanelButtonText.text = (ModelGraphUIv2 != null && ModelGraphUIv2.IsPanelVisible) ? "\u25BC" : "\u25C0";
+        }
+
+        private void CreateTogglePanelButton()
+        {
+            var canvas = GetComponentInParent<Canvas>();
+            if (canvas == null) return;
+
+            var go = new GameObject("Toggle Panel Button");
+            go.transform.SetParent(canvas.transform, false);
+
+            var rect = go.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0, 0.5F);
+            rect.anchorMax = new Vector2(0, 0.5F);
+            rect.pivot = new Vector2(0, 0.5F);
+            rect.anchoredPosition = new Vector2(0, 0);
+            rect.sizeDelta = new Vector2(28, 64);
+
+            var img = go.AddComponent<UnityEngine.UI.Image>();
+            img.color = new Color(0, 0, 0, 0.392F);
+
+            var btn = go.AddComponent<UnityEngine.UI.Button>();
+            btn.targetGraphic = img;
+            btn.onClick.AddListener(ToggleModelGraphPanel);
+
+            var textGo = new GameObject("Text");
+            textGo.transform.SetParent(go.transform, false);
+
+            var textRect = textGo.AddComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.sizeDelta = Vector2.zero;
+
+            var text = textGo.AddComponent<TMPro.TextMeshProUGUI>();
+            text.text = "\u25C0";
+            text.fontSize = 20;
+            text.alignment = TMPro.TextAlignmentOptions.Center;
+            text.color = Color.white;
+            togglePanelButtonText = text;
+
+            UpdateTogglePanelButton();
         }
 
         public Dictionary<char, int> GetBaseColorPalette()
@@ -636,6 +695,8 @@ namespace MarkovCraft
 
                     ControlTabPanel!.OnSelectionChange.RemoveAllListeners();
                     ControlTabPanel.OnSelectionChange.AddListener(ClearUpScene);
+
+                    CreateTogglePanelButton();
 
                     UpdateConfModelList();
 

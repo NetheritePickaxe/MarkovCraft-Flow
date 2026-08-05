@@ -38,6 +38,8 @@ namespace MarkovCraft
         private bool nodeNamesVisible = true;
         public bool NodeNamesVisible => nodeNamesVisible;
 
+        public bool IsPanelVisible { get; private set; }
+
         public void SetNameText(string graphName)
         {
             (GetComponent<UIDocument>().rootVisualElement.Q("panel")
@@ -95,6 +97,7 @@ namespace MarkovCraft
 
             var elem = GetComponent<UIDocument>().rootVisualElement;
             elem.Q("panel").AddToClassList("shown");
+            IsPanelVisible = true;
             //elem.pickingMode = PickingMode.Position;
         }
 
@@ -102,6 +105,7 @@ namespace MarkovCraft
         {
             var elem = GetComponent<UIDocument>().rootVisualElement;
             elem.Q("panel").RemoveFromClassList("shown");
+            IsPanelVisible = false;
             //elem.pickingMode = PickingMode.Ignore;
         }
 
@@ -119,8 +123,12 @@ namespace MarkovCraft
 
         void Start()
         {
-            (GetComponent<UIDocument>().rootVisualElement.Q("panel")
-                    .Q("display_node_names_button") as Button)!.clicked += ToggleNodeNamesVisibility;
+            var panel = GetComponent<UIDocument>().rootVisualElement.Q("panel");
+            (panel.Q("display_node_names_button") as Button)!.clicked += ToggleNodeNamesVisibility;
+            (panel.Q("collapse_panel_button") as Button)!.clicked += () =>
+            {
+                HidePanel();
+            };
         }
 
         void Update()
