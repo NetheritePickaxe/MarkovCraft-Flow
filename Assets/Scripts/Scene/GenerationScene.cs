@@ -791,6 +791,8 @@ namespace MarkovCraft
             selectedResult!.DisableBlockColliders();
             // Hide export button
             ResultOperationPanelAnimator!.SetBool(HIDDEN, true);
+            // Clear selection to prevent accidental re-lock during panel hide animation
+            UpdateSelectedResult(null);
         }
 
         public GenerationResult? GetSelectedResult()
