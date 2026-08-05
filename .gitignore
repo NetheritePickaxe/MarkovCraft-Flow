@@ -90,3 +90,6 @@ crashlytics-build.properties
 
 # CI-generated keystore
 Keystore/
+
+# Unity license base64 export (contains secret)
+unity_license_base64.txt
