@@ -204,7 +204,7 @@ jobs:
           buildName: MarkovCraft-Flow
           buildsPath: builds
           skipActivation: true
-          androidExportType: androidAppBundle
+          androidExportType: androidApk
           androidKeystoreName: Keystore/markovcraft.keystore
           androidKeystorePass: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           androidKeyaliasName: ${{ secrets.ANDROID_KEY_ALIAS }}
