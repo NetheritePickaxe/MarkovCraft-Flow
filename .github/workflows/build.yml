@@ -205,7 +205,16 @@ jobs:
           androidKeyaliasName: ${{ secrets.ANDROID_KEY_ALIAS }}
           androidKeyaliasPass: ${{ secrets.ANDROID_KEY_ALIAS_PASSWORD }}
 
-      - name: Upload build artifact
+      - name: Upload Windows build artifact
+        if: matrix.targetPlatform == 'StandaloneWindows64'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifactName }}
+          path: builds/${{ matrix.targetPlatform }}
+          if-no-files-found: error
+
+      - name: Upload Android build artifact
+        if: matrix.targetPlatform == 'Android'
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifactName }}
