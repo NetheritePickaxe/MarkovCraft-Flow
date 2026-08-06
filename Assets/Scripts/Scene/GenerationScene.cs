@@ -53,6 +53,7 @@ namespace MarkovCraft
         [SerializeField] public TMP_Dropdown? ConfiguredModelDropdown;
         [SerializeField] public Slider? PlaybackSpeedSlider;
         [SerializeField] public Button? CreateButton, ConfigButton, ExecuteButton;
+        [SerializeField] private JoystickPanel? joystickPanel;
         // HUD Controls - Import Vox Panel
         [SerializeField] public TMP_InputField? VoxPathInput;
         [SerializeField] public Button? VoxImportButton;

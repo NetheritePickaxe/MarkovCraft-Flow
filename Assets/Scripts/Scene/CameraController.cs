@@ -253,6 +253,8 @@ namespace MarkovCraft
                     if (joystickPanel.ZoomOutButtonIsHeld) scroll -= Time.deltaTime;
                     if (joystickPanel.RotateLeftButtonIsHeld) rot += 1F;
                     if (joystickPanel.RotateRightButtonIsHeld) rot -= 1F;
+                    if (joystickPanel.FlyUpButtonIsHeld) fly += 1F;
+                    if (joystickPanel.FlyDownButtonIsHeld) fly -= 1F;
                 }
             }
 
