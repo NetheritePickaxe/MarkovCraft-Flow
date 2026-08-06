@@ -220,3 +220,4 @@ jobs:
           name: MarkovCraft-Flow.APK
           path: builds/Android/MarkovCraft-Flow.apk
           if-no-files-found: error
+          archive: false
