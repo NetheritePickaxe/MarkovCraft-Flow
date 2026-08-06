@@ -217,7 +217,6 @@ jobs:
         if: matrix.targetPlatform == 'Android'
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.artifactName }}
-          path: builds/${{ matrix.targetPlatform }}
+          name: MarkovCraft-Flow.APK
+          path: builds/Android/MarkovCraft-Flow.apk
           if-no-files-found: error
-          archive: false
