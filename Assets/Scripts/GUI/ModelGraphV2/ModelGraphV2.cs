@@ -91,6 +91,13 @@ namespace MarkovCraft
                 item.Value.SetNodeNameVisible(nodeNamesVisible);
         }
 
+        public void SetBottomMargin(float margin)
+        {
+            var panel = GetComponent<UIDocument>().rootVisualElement.Q("panel");
+            if (panel != null)
+                panel.style.marginBottom = margin;
+        }
+
         public void ShowPanelIfNotEmpty()
         {
             if (GraphNodes.Count == 0) return;

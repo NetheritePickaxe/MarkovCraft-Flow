@@ -61,8 +61,10 @@ namespace MarkovCraft
         private TMP_Text? togglePanelButtonText;
         private TMP_Text? touchModeButtonText;
 
-        // Touch mode state
-        private bool touchMode = false;
+        // Layout mode: 0=touch, 1=layout1 (single joystick), 2=layout2 (dual joystick)
+        private int layoutMode = 0;
+        private bool touchMode => layoutMode == 0;
+        private JoystickPanel? viewJoystickPanel;
         private bool tapDetectedThisFrame = false;
         private Vector2 tapStartPos = Vector2.zero;
         private float tapStartTime = 0F;
@@ -208,49 +210,120 @@ namespace MarkovCraft
             togglePanelButtonText = text;
 
             UpdateTogglePanelButton();
-
-            // Create touch mode toggle button
-            var touchToggleGo = new GameObject("TouchModeToggle");
-            touchToggleGo.transform.SetParent(canvas.transform, false);
-            var touchRect = touchToggleGo.AddComponent<RectTransform>();
-            touchRect.anchorMin = new Vector2(1, 0.5F);
-            touchRect.anchorMax = new Vector2(1, 0.5F);
-            touchRect.pivot = new Vector2(1, 0.5F);
-            touchRect.anchoredPosition = new Vector2(-10, 0);
-            touchRect.sizeDelta = new Vector2(100, 40);
-
-            var touchImg = touchToggleGo.AddComponent<UnityEngine.UI.Image>();
-            touchImg.color = new Color(0, 0, 0, 0.6F);
-
-            var touchBtn = touchToggleGo.AddComponent<UnityEngine.UI.Button>();
-            touchBtn.targetGraphic = touchImg;
-            touchBtn.onClick.AddListener(ToggleTouchMode);
-
-            var touchTextGo = new GameObject("Text");
-            touchTextGo.transform.SetParent(touchToggleGo.transform, false);
-            var touchTextRect = touchTextGo.AddComponent<RectTransform>();
-            touchTextRect.anchorMin = Vector2.zero;
-            touchTextRect.anchorMax = Vector2.one;
-            touchTextRect.sizeDelta = Vector2.zero;
-
-            touchModeButtonText = touchTextGo.AddComponent<TMPro.TextMeshProUGUI>();
-            touchModeButtonText.text = touchMode ? "触屏模式" : "摇杆模式";
-            touchModeButtonText.fontSize = 16;
-            touchModeButtonText.alignment = TMPro.TextAlignmentOptions.Center;
-            touchModeButtonText.color = Color.white;
         }
 
         private void ToggleTouchMode()
         {
-            touchMode = !touchMode;
-            PlayerPrefs.SetInt("TouchInputMode", touchMode ? 1 : 0);
+            layoutMode = (layoutMode + 1) % 3; // 0=touch, 1=layout1, 2=layout2
+            PlayerPrefs.SetInt("InputLayoutMode", layoutMode);
             PlayerPrefs.Save();
+            ApplyLayoutMode();
+        }
+
+        private void ApplyLayoutMode()
+        {
             if (CamController != null)
                 CamController.TouchInputMode = touchMode;
+
+            // Move joystick visibility & position
             if (joystickPanel != null)
-                joystickPanel.gameObject.SetActive(!touchMode);
+            {
+                var rect = joystickPanel.GetComponent<RectTransform>();
+                if (rect != null)
+                {
+                    if (layoutMode == 0) // Touch: top-right corner, no buttons
+                    {
+                        rect.anchorMin = new Vector2(1, 1);
+                        rect.anchorMax = new Vector2(1, 1);
+                        rect.pivot = new Vector2(1, 1);
+                        rect.anchoredPosition = new Vector2(-50, -100);
+                        joystickPanel.ShowExtraButtons(false);
+                    }
+                    else if (layoutMode == 1) // Layout 1: existing top-right with buttons
+                    {
+                        rect.anchorMin = new Vector2(1, 1);
+                        rect.anchorMax = new Vector2(1, 1);
+                        rect.pivot = new Vector2(1, 1);
+                        rect.anchoredPosition = new Vector2(-50, -100);
+                        joystickPanel.ShowExtraButtons(true);
+                    }
+                    else // Layout 2: bottom-left, move only
+                    {
+                        rect.anchorMin = new Vector2(0, 0);
+                        rect.anchorMax = new Vector2(0, 0);
+                        rect.pivot = new Vector2(0, 0);
+                        rect.anchoredPosition = new Vector2(50, 50);
+                        joystickPanel.ShowExtraButtons(false);
+                    }
+                }
+                joystickPanel.gameObject.SetActive(true);
+            }
+
+            // View joystick (Layout 2 only)
+            if (layoutMode == 2)
+            {
+                if (viewJoystickPanel == null)
+                    CreateViewJoystick();
+                if (viewJoystickPanel != null)
+                {
+                    viewJoystickPanel.gameObject.SetActive(true);
+                    viewJoystickPanel.ShowExtraButtons(true);
+                }
+            }
+            else if (viewJoystickPanel != null)
+            {
+                viewJoystickPanel.gameObject.SetActive(false);
+            }
+
+            // ModelGraph margin
+            if (ModelGraphUIv2 != null)
+            {
+                ModelGraphUIv2.SetBottomMargin(layoutMode == 2 ? 250F : 100F);
+            }
+
+            // Update button text
             if (touchModeButtonText != null)
-                touchModeButtonText.text = touchMode ? "触屏模式" : "摇杆模式";
+            {
+                touchModeButtonText.text = layoutMode switch
+                {
+                    0 => "触屏模式",
+                    1 => "单摇杆",
+                    _ => "双摇杆"
+                };
+            }
+        }
+
+        private void CreateViewJoystick()
+        {
+            var canvas = GetComponentInParent<Canvas>();
+            if (canvas == null) return;
+
+            var go = new GameObject("View Joystick");
+            go.transform.SetParent(canvas.transform, false);
+
+            var rect = go.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(1, 1);
+            rect.anchorMax = new Vector2(1, 1);
+            rect.pivot = new Vector2(1, 1);
+            rect.anchoredPosition = new Vector2(-50, -100);
+            rect.sizeDelta = new Vector2(200, 200);
+
+            var img = go.AddComponent<UnityEngine.UI.Image>();
+            img.color = new Color(1, 1, 1, 0.392F);
+
+            var handle = new GameObject("Handle");
+            handle.transform.SetParent(go.transform, false);
+            var handleRect = handle.AddComponent<RectTransform>();
+            handleRect.anchorMin = new Vector2(0.5F, 0.5F);
+            handleRect.anchorMax = new Vector2(0.5F, 0.5F);
+            handleRect.sizeDelta = new Vector2(96, 96);
+            var handleImg = handle.AddComponent<UnityEngine.UI.Image>();
+            handleImg.color = new Color(1, 1, 1, 0.784F);
+
+            viewJoystickPanel = go.AddComponent<JoystickPanel>();
+            viewJoystickPanel.SetHandle(handleRect);
+            if (CamController != null)
+                CamController.SetViewJoystick(viewJoystickPanel);
         }
 
         private void CreateTouchModeToggle()
@@ -283,11 +356,8 @@ namespace MarkovCraft
             textRect.sizeDelta = Vector2.zero;
 
             touchModeButtonText = textGo.AddComponent<TMPro.TextMeshProUGUI>();
-            touchMode = PlayerPrefs.GetInt("TouchInputMode", 0) == 1;
-            CamController!.TouchInputMode = touchMode;
-            if (joystickPanel != null)
-                joystickPanel.gameObject.SetActive(!touchMode);
-            touchModeButtonText.text = touchMode ? "触屏模式" : "摇杆模式";
+            layoutMode = PlayerPrefs.GetInt("InputLayoutMode", 0);
+            ApplyLayoutMode();
             touchModeButtonText.fontSize = 16;
             touchModeButtonText.alignment = TMPro.TextAlignmentOptions.Center;
             touchModeButtonText.color = Color.white;

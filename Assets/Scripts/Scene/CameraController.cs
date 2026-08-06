@@ -16,6 +16,7 @@ namespace MarkovCraft
         [SerializeField] [Range(10F, 1000F)] private float yPosMin   =  15F;
         [SerializeField] [Range(10F, 1000F)] private float yPosMax   = 325F;
         [SerializeField] private JoystickPanel joystickPanel;
+        [SerializeField] private JoystickPanel viewJoystickPanel;
         private float yPosition = 0F;
 
         public Camera ViewCamera { get; private set; }
@@ -30,6 +31,11 @@ namespace MarkovCraft
         private bool touchPanning = false, touchRotating = false;
         private Vector2 touchPanStart = Vector2.zero;
         private float prevPinchDist = 0F;
+
+        public void SetViewJoystick(JoystickPanel panel)
+        {
+            viewJoystickPanel = panel;
+        }
 
         public void SetCenterPosition(Vector3 newCenter)
         {
@@ -77,6 +83,7 @@ namespace MarkovCraft
             float ver = 0F;
             float fly = 0F;
             float rot = 0F;
+            float pitch = 0F;
             float scroll = 0F;
 
             if (TouchInputMode)
@@ -255,10 +262,20 @@ namespace MarkovCraft
                     if (joystickPanel.RotateRightButtonIsHeld) rot -= 1F;
                     if (joystickPanel.FlyUpButtonIsHeld) fly += 1F;
                     if (joystickPanel.FlyDownButtonIsHeld) fly -= 1F;
+                    if (joystickPanel.PitchUpButtonIsHeld) pitch += 1F;
+                    if (joystickPanel.PitchDownButtonIsHeld) pitch -= 1F;
+                }
+
+                // View joystick (Layout 2): Value.x -> yaw, Value.y -> pitch
+                if (viewJoystickPanel && viewJoystickPanel.Magnitude > 0F)
+                {
+                    rot += viewJoystickPanel.Value.x * 0.01F;
+                    pitch -= viewJoystickPanel.Value.y * 0.01F;
+                    scroll += viewJoystickPanel.Magnitude * 0.001F;
                 }
             }
 
-            if (rot != 0F) // Turn camera
+            if (rot != 0F || pitch != 0F) // Turn camera
             {
                 var ray = !ViewCamera ?
                         new Ray(transform.position, transform.forward) :
@@ -266,10 +283,13 @@ namespace MarkovCraft
                 REFERENCE_PLANE.Raycast(ray, out float dist);
 
                 var hitPoint = transform.position + ray.direction * dist;
-                Debug.DrawLine(hitPoint, hitPoint + Vector3.up * 50F);
-
                 var eulerAngles = transform.eulerAngles;
-                transform.localEulerAngles = new Vector3(eulerAngles.x, eulerAngles.y + rot * turnSpeed * Time.deltaTime, eulerAngles.z);
+
+                float newYaw = eulerAngles.y + rot * turnSpeed * Time.deltaTime;
+                float newPitch = eulerAngles.x + pitch * turnSpeed * Time.deltaTime;
+                newPitch = Mathf.Clamp(newPitch, -85F, 85F);
+
+                transform.localEulerAngles = new Vector3(newPitch, newYaw, eulerAngles.z);
 
                 // Get ray direction after the rotation
                 var newRayDirection = !ViewCamera ? transform.forward:

@@ -812,7 +812,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 48, y: 48}
+  m_SizeDelta: {x: 96, y: 96}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &2269660098928081465
 CanvasRenderer:
@@ -1395,7 +1395,7 @@ MonoBehaviour:
   zoomOutButton: {fileID: 7754189466108264178}
   rotateLeftButton: {fileID: 57926536620005094}
   rotateRightButton: {fileID: 180531139456894188}
-  maxRadius: 120
+  maxRadius: 160
   deadZone: 0.1
   onValueChanged:
     m_PersistentCalls:

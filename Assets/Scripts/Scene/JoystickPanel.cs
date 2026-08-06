@@ -39,6 +39,8 @@ namespace MarkovCraft
 
         public bool FlyUpButtonIsHeld { get; private set; }
         public bool FlyDownButtonIsHeld { get; private set; }
+        public bool PitchUpButtonIsHeld { get; private set; }
+        public bool PitchDownButtonIsHeld { get; private set; }
 
         private RectTransform rectTransform;
         private Canvas parentCanvas;
@@ -81,6 +83,16 @@ namespace MarkovCraft
         public void UpdateFlyDownButtonHeldStatus(bool held)
         {
             FlyDownButtonIsHeld = held;
+        }
+
+        public void UpdatePitchUpButtonHeldStatus(bool held)
+        {
+            PitchUpButtonIsHeld = held;
+        }
+
+        public void UpdatePitchDownButtonHeldStatus(bool held)
+        {
+            PitchDownButtonIsHeld = held;
         }
 
         private void CreateFlyButtons()
@@ -151,6 +163,70 @@ namespace MarkovCraft
             flyDownText.fontSize = 48;
             flyDownText.alignment = TMPro.TextAlignmentOptions.Center;
             flyDownText.color = new Color(0.2F, 0.2F, 0.2F, 0.784F);
+
+            // Pitch Up button (right side)
+            var pitchUpGo = new GameObject("Pitch-Up Button");
+            pitchUpGo.transform.SetParent(parent, false);
+            var pitchUpRect = pitchUpGo.AddComponent<RectTransform>();
+            pitchUpRect.anchorMin = new Vector2(1, 0.5F);
+            pitchUpRect.anchorMax = new Vector2(1, 0.5F);
+            pitchUpRect.pivot = new Vector2(1, 0.5F);
+            pitchUpRect.anchoredPosition = new Vector2(-10, 40);
+            pitchUpRect.sizeDelta = new Vector2(80, 60);
+            var pitchUpImg = pitchUpGo.AddComponent<Image>();
+            pitchUpImg.color = new Color(1, 1, 1, 0.392F);
+            var pitchUpBtn = pitchUpGo.AddComponent<Button>();
+            pitchUpBtn.targetGraphic = pitchUpImg;
+            var pitchUpTrig = pitchUpGo.AddComponent<EventTrigger>();
+            var pitchUpDown = new EventTrigger.Entry { eventID = EventTriggerType.PointerDown };
+            pitchUpDown.callback.AddListener((_) => UpdatePitchUpButtonHeldStatus(true));
+            var pitchUpUp = new EventTrigger.Entry { eventID = EventTriggerType.PointerUp };
+            pitchUpUp.callback.AddListener((_) => UpdatePitchUpButtonHeldStatus(false));
+            pitchUpTrig.triggers = new System.Collections.Generic.List<EventTrigger.Entry> { pitchUpDown, pitchUpUp };
+            var pitchUpTextGo = new GameObject("Text (TMP)");
+            pitchUpTextGo.transform.SetParent(pitchUpGo.transform, false);
+            var pitchUpTextRect = pitchUpTextGo.AddComponent<RectTransform>();
+            pitchUpTextRect.anchorMin = Vector2.zero;
+            pitchUpTextRect.anchorMax = Vector2.one;
+            pitchUpTextRect.sizeDelta = Vector2.zero;
+            pitchUpTextRect.pivot = new Vector2(0.5F, 0.5F);
+            var pitchUpText = pitchUpTextGo.AddComponent<TextMeshProUGUI>();
+            pitchUpText.text = "\u25B2";
+            pitchUpText.fontSize = 48;
+            pitchUpText.alignment = TextAlignmentOptions.Center;
+            pitchUpText.color = new Color(0.2F, 0.2F, 0.2F, 0.784F);
+
+            // Pitch Down button (right side)
+            var pitchDownGo = new GameObject("Pitch-Down Button");
+            pitchDownGo.transform.SetParent(parent, false);
+            var pitchDownRect = pitchDownGo.AddComponent<RectTransform>();
+            pitchDownRect.anchorMin = new Vector2(1, 0.5F);
+            pitchDownRect.anchorMax = new Vector2(1, 0.5F);
+            pitchDownRect.pivot = new Vector2(1, 0.5F);
+            pitchDownRect.anchoredPosition = new Vector2(-10, -40);
+            pitchDownRect.sizeDelta = new Vector2(80, 60);
+            var pitchDownImg = pitchDownGo.AddComponent<Image>();
+            pitchDownImg.color = new Color(1, 1, 1, 0.392F);
+            var pitchDownBtn = pitchDownGo.AddComponent<Button>();
+            pitchDownBtn.targetGraphic = pitchDownImg;
+            var pitchDownTrig = pitchDownGo.AddComponent<EventTrigger>();
+            var pitchDownDown = new EventTrigger.Entry { eventID = EventTriggerType.PointerDown };
+            pitchDownDown.callback.AddListener((_) => UpdatePitchDownButtonHeldStatus(true));
+            var pitchDownUp = new EventTrigger.Entry { eventID = EventTriggerType.PointerUp };
+            pitchDownUp.callback.AddListener((_) => UpdatePitchDownButtonHeldStatus(false));
+            pitchDownTrig.triggers = new System.Collections.Generic.List<EventTrigger.Entry> { pitchDownDown, pitchDownUp };
+            var pitchDownTextGo = new GameObject("Text (TMP)");
+            pitchDownTextGo.transform.SetParent(pitchDownGo.transform, false);
+            var pitchDownTextRect = pitchDownTextGo.AddComponent<RectTransform>();
+            pitchDownTextRect.anchorMin = Vector2.zero;
+            pitchDownTextRect.anchorMax = Vector2.one;
+            pitchDownTextRect.sizeDelta = Vector2.zero;
+            pitchDownTextRect.pivot = new Vector2(0.5F, 0.5F);
+            var pitchDownText = pitchDownTextGo.AddComponent<TextMeshProUGUI>();
+            pitchDownText.text = "\u25BC";
+            pitchDownText.fontSize = 48;
+            pitchDownText.alignment = TextAlignmentOptions.Center;
+            pitchDownText.color = new Color(0.2F, 0.2F, 0.2F, 0.784F);
         }
 
         private Camera ResolveCamera()
@@ -225,6 +301,23 @@ namespace MarkovCraft
             {
                 handle.anchoredPosition = offset;
             }
+        }
+
+        public void SetHandle(RectTransform newHandle)
+        {
+            handle = newHandle;
+        }
+
+        public void ShowExtraButtons(bool visible)
+        {
+            var flyUp = transform.Find("Fly-Up Button");
+            var flyDown = transform.Find("Fly-Down Button");
+            var pitchUp = transform.Find("Pitch-Up Button");
+            var pitchDown = transform.Find("Pitch-Down Button");
+            if (flyUp != null) flyUp.gameObject.SetActive(visible);
+            if (flyDown != null) flyDown.gameObject.SetActive(visible);
+            if (pitchUp != null) pitchUp.gameObject.SetActive(visible);
+            if (pitchDown != null) pitchDown.gameObject.SetActive(visible);
         }
 
         private void ResetStick()
