@@ -184,11 +184,11 @@ namespace MarkovCraft
             rect.anchorMin = new Vector2(0, 0.5F);
             rect.anchorMax = new Vector2(0, 0.5F);
             rect.pivot = new Vector2(0, 0.5F);
-            rect.anchoredPosition = new Vector2(0, 0);
-            rect.sizeDelta = new Vector2(28, 64);
+            rect.anchoredPosition = new Vector2(10, 0);
+            rect.sizeDelta = new Vector2(36, 64);
 
             var img = go.AddComponent<UnityEngine.UI.Image>();
-            img.color = new Color(0, 0, 0, 0.392F);
+            img.color = new Color(0, 0, 0, 0.6F);
 
             var btn = go.AddComponent<UnityEngine.UI.Button>();
             btn.targetGraphic = img;
@@ -338,8 +338,8 @@ namespace MarkovCraft
             rect.anchorMin = new Vector2(1, 0.5F);
             rect.anchorMax = new Vector2(1, 0.5F);
             rect.pivot = new Vector2(1, 0.5F);
-            rect.anchoredPosition = new Vector2(-10, 0);
-            rect.sizeDelta = new Vector2(100, 40);
+            rect.anchoredPosition = new Vector2(-20, 0);
+            rect.sizeDelta = new Vector2(120, 44);
 
             var img = go.AddComponent<UnityEngine.UI.Image>();
             img.color = new Color(0, 0, 0, 0.6F);

@@ -100,14 +100,14 @@ namespace MarkovCraft
             var parent = transform;
             if (parent == null) return;
 
-            // Fly Up button
+            // Fly Up button (left side, middle-upper)
             var flyUpGo = new GameObject("Fly-Up Button");
             flyUpGo.transform.SetParent(parent, false);
             var flyUpRect = flyUpGo.AddComponent<RectTransform>();
-            flyUpRect.anchorMin = new Vector2(0.5F, 1);
-            flyUpRect.anchorMax = new Vector2(0.5F, 1);
-            flyUpRect.pivot = new Vector2(0.5F, 1);
-            flyUpRect.anchoredPosition = new Vector2(0, -10);
+            flyUpRect.anchorMin = new Vector2(0, 0.5F);
+            flyUpRect.anchorMax = new Vector2(0, 0.5F);
+            flyUpRect.pivot = new Vector2(0, 0.5F);
+            flyUpRect.anchoredPosition = new Vector2(10, 40);
             flyUpRect.sizeDelta = new Vector2(80, 60);
             var flyUpImg = flyUpGo.AddComponent<Image>();
             flyUpImg.color = new Color(1, 1, 1, 0.392F);
@@ -132,14 +132,14 @@ namespace MarkovCraft
             flyUpText.alignment = TMPro.TextAlignmentOptions.Center;
             flyUpText.color = new Color(0.2F, 0.2F, 0.2F, 0.784F);
 
-            // Fly Down button
+            // Fly Down button (left side, middle-lower)
             var flyDownGo = new GameObject("Fly-Down Button");
             flyDownGo.transform.SetParent(parent, false);
             var flyDownRect = flyDownGo.AddComponent<RectTransform>();
-            flyDownRect.anchorMin = new Vector2(0.5F, 1);
-            flyDownRect.anchorMax = new Vector2(0.5F, 1);
-            flyDownRect.pivot = new Vector2(0.5F, 1);
-            flyDownRect.anchoredPosition = new Vector2(0, -80);
+            flyDownRect.anchorMin = new Vector2(0, 0.5F);
+            flyDownRect.anchorMax = new Vector2(0, 0.5F);
+            flyDownRect.pivot = new Vector2(0, 0.5F);
+            flyDownRect.anchoredPosition = new Vector2(10, -40);
             flyDownRect.sizeDelta = new Vector2(80, 60);
             var flyDownImg = flyDownGo.AddComponent<Image>();
             flyDownImg.color = new Color(1, 1, 1, 0.392F);
@@ -164,14 +164,14 @@ namespace MarkovCraft
             flyDownText.alignment = TMPro.TextAlignmentOptions.Center;
             flyDownText.color = new Color(0.2F, 0.2F, 0.2F, 0.784F);
 
-            // Pitch Up button (right side)
+            // Pitch Up button (left side, top)
             var pitchUpGo = new GameObject("Pitch-Up Button");
             pitchUpGo.transform.SetParent(parent, false);
             var pitchUpRect = pitchUpGo.AddComponent<RectTransform>();
-            pitchUpRect.anchorMin = new Vector2(1, 0.5F);
-            pitchUpRect.anchorMax = new Vector2(1, 0.5F);
-            pitchUpRect.pivot = new Vector2(1, 0.5F);
-            pitchUpRect.anchoredPosition = new Vector2(-10, 40);
+            pitchUpRect.anchorMin = new Vector2(0, 0.5F);
+            pitchUpRect.anchorMax = new Vector2(0, 0.5F);
+            pitchUpRect.pivot = new Vector2(0, 0.5F);
+            pitchUpRect.anchoredPosition = new Vector2(10, 100);
             pitchUpRect.sizeDelta = new Vector2(80, 60);
             var pitchUpImg = pitchUpGo.AddComponent<Image>();
             pitchUpImg.color = new Color(1, 1, 1, 0.392F);
@@ -196,14 +196,14 @@ namespace MarkovCraft
             pitchUpText.alignment = TextAlignmentOptions.Center;
             pitchUpText.color = new Color(0.2F, 0.2F, 0.2F, 0.784F);
 
-            // Pitch Down button (right side)
+            // Pitch Down button (left side, bottom)
             var pitchDownGo = new GameObject("Pitch-Down Button");
             pitchDownGo.transform.SetParent(parent, false);
             var pitchDownRect = pitchDownGo.AddComponent<RectTransform>();
-            pitchDownRect.anchorMin = new Vector2(1, 0.5F);
-            pitchDownRect.anchorMax = new Vector2(1, 0.5F);
-            pitchDownRect.pivot = new Vector2(1, 0.5F);
-            pitchDownRect.anchoredPosition = new Vector2(-10, -40);
+            pitchDownRect.anchorMin = new Vector2(0, 0.5F);
+            pitchDownRect.anchorMax = new Vector2(0, 0.5F);
+            pitchDownRect.pivot = new Vector2(0, 0.5F);
+            pitchDownRect.anchoredPosition = new Vector2(10, -100);
             pitchDownRect.sizeDelta = new Vector2(80, 60);
             var pitchDownImg = pitchDownGo.AddComponent<Image>();
             pitchDownImg.color = new Color(1, 1, 1, 0.392F);
