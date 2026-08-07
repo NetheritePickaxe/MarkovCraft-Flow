@@ -33,6 +33,9 @@
 # Visual Studio cache directory
 .vs/
 
+# opencode local config
+.opencode/
+
 # Visual Studio Code settings
 .vscode/
 
